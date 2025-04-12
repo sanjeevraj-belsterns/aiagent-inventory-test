@@ -6,7 +6,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon index.js",
-    "start": "node index.js"
+    "start": "node index.js",
+    "test:unit": "jest"
   },
   "author": "",
   "license": "ISC",
@@ -27,5 +28,8 @@
     "os": "^0.1.2",
     "path": "^0.12.7",
     "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
   }
 }
