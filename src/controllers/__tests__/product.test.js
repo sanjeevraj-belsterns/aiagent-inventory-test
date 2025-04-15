@@ -1,5 +1,5 @@
 import request from 'supertest';
-import app from '../../app';
+import app from '../../app'; // Assuming you have an app.js file that exports your Express app
 import ProductModel from '../../models/products';
 
 jest.mock('../../models/products');
@@ -11,23 +11,26 @@ describe('Product Controller', () => {
 
   describe('addProduct', () => {
     it('should add a product successfully', async () => {
-      const reqBody = { productName: 'Test Product', productImage: 'image_url', category: 'Test Category', brandId: 'brand_id', purchasePrice: 100, retailPrice: 150, offerPer: 10, threshold: 5, stock: 20, description: 'Test Description' };
-      ProductModel.create.mockResolvedValue(reqBody);
+      const mockProduct = { productName: 'Test Product', category: 'Test Category', brandId: '123', purchasePrice: 100, retailPrice: 150, offerPer: 10, threshold: 5, stock: 20, description: 'Test Description' };
+      const mockImageUpload = { secure_url: 'http://example.com/image.jpg' };
+      cloudinary.uploader.upload = jest.fn().mockResolvedValue(mockImageUpload);
+      ProductModel.create = jest.fn().mockResolvedValue(mockProduct);
 
       const response = await request(app)
         .post('/api/products')
-        .send(reqBody);
+        .send({ ...mockProduct, productImage: 'imageData' });
 
       expect(response.status).toBe(201);
       expect(response.body.message).toBe('Product added successfully!');
+      expect(ProductModel.create).toHaveBeenCalledWith({ ...mockProduct, productImage: mockImageUpload.secure_url });
     });
 
     it('should return 500 on error', async () => {
-      ProductModel.create.mockRejectedValue(new Error('Error')); 
+      cloudinary.uploader.upload = jest.fn().mockRejectedValue(new Error('Upload failed'));
 
       const response = await request(app)
         .post('/api/products')
-        .send({});
+        .send({ productName: 'Test Product' });
 
       expect(response.status).toBe(500);
       expect(response.body.error).toBe('Internal Server Error');
@@ -36,21 +39,21 @@ describe('Product Controller', () => {
 
   describe('getProductsByBrandId', () => {
     it('should return products by brand ID', async () => {
-      const products = [{ productName: 'Test Product' }];
-      ProductModel.find.mockResolvedValue(products);
+      const mockProducts = [{ productName: 'Product 1' }, { productName: 'Product 2' }];
+      ProductModel.find = jest.fn().mockResolvedValue(mockProducts);
 
       const response = await request(app)
-        .get('/api/products?brandId=brand_id');
+        .get('/api/products?brandId=123');
 
       expect(response.status).toBe(200);
-      expect(response.body.products).toEqual(products);
+      expect(response.body.products).toEqual(mockProducts);
     });
 
     it('should return 500 on error', async () => {
-      ProductModel.find.mockRejectedValue(new Error('Error'));
+      ProductModel.find = jest.fn().mockRejectedValue(new Error('Fetch failed'));
 
       const response = await request(app)
-        .get('/api/products?brandId=brand_id');
+        .get('/api/products?brandId=123');
 
       expect(response.status).toBe(500);
       expect(response.body.error).toBe('Internal Server Error');
@@ -59,36 +62,35 @@ describe('Product Controller', () => {
 
   describe('updateProduct', () => {
     it('should update a product successfully', async () => {
-      const reqBody = { _id: 'product_id', productName: 'Updated Product' };
-      const updatedProduct = { ...reqBody, productImage: 'image_url' };
-      ProductModel.findOneAndUpdate.mockResolvedValue(updatedProduct);
+      const mockProduct = { _id: '123', productName: 'Updated Product' };
+      ProductModel.findOneAndUpdate = jest.fn().mockResolvedValue(mockProduct);
 
       const response = await request(app)
         .put('/api/products')
-        .send(reqBody);
+        .send({ _id: '123', productName: 'Updated Product' });
 
       expect(response.status).toBe(200);
       expect(response.body.message).toBe('Product updated successfully');
-      expect(response.body.product).toEqual(updatedProduct);
+      expect(response.body.product).toEqual(mockProduct);
     });
 
     it('should return 400 if product not found', async () => {
-      ProductModel.findOneAndUpdate.mockResolvedValue(null);
+      ProductModel.findOneAndUpdate = jest.fn().mockResolvedValue(null);
 
       const response = await request(app)
         .put('/api/products')
-        .send({ _id: 'non_existing_id' });
+        .send({ _id: '123' });
 
       expect(response.status).toBe(400);
       expect(response.body.message).toBe('Product not found!');
     });
 
     it('should return 500 on error', async () => {
-      ProductModel.findOneAndUpdate.mockRejectedValue(new Error('Error'));
+      ProductModel.findOneAndUpdate = jest.fn().mockRejectedValue(new Error('Update failed'));
 
       const response = await request(app)
         .put('/api/products')
-        .send({ _id: 'product_id' });
+        .send({ _id: '123' });
 
       expect(response.status).toBe(500);
       expect(response.body.message).toBe('Internal Server Error!!');
@@ -97,16 +99,16 @@ describe('Product Controller', () => {
 
   describe('deleteProduct', () => {
     it('should delete a product successfully', async () => {
-      ProductModel.findByIdAndDelete.mockResolvedValue({});
+      ProductModel.findByIdAndDelete = jest.fn().mockResolvedValue({});
 
       const response = await request(app)
-        .delete('/api/products?_id=product_id');
+        .delete('/api/products?_id=123');
 
       expect(response.status).toBe(200);
       expect(response.body.message).toBe('Product deleted successfully.');
     });
 
-    it('should return 400 if product ID is not provided', async () => {
+    it('should return 400 if product ID is missing', async () => {
       const response = await request(app)
         .delete('/api/products');
 
@@ -115,20 +117,20 @@ describe('Product Controller', () => {
     });
 
     it('should return 404 if product not found', async () => {
-      ProductModel.findByIdAndDelete.mockResolvedValue(null);
+      ProductModel.findByIdAndDelete = jest.fn().mockResolvedValue(null);
 
       const response = await request(app)
-        .delete('/api/products?_id=non_existing_id');
+        .delete('/api/products?_id=123');
 
       expect(response.status).toBe(404);
       expect(response.body.error).toBe('Product not found.');
     });
 
     it('should return 500 on error', async () => {
-      ProductModel.findByIdAndDelete.mockRejectedValue(new Error('Error'));
+      ProductModel.findByIdAndDelete = jest.fn().mockRejectedValue(new Error('Delete failed'));
 
       const response = await request(app)
-        .delete('/api/products?_id=product_id');
+        .delete('/api/products?_id=123');
 
       expect(response.status).toBe(500);
       expect(response.body.message).toBe('Internal Server Error!');
@@ -137,18 +139,18 @@ describe('Product Controller', () => {
 
   describe('getProductsForInvoice', () => {
     it('should return products for invoice', async () => {
-      const products = [{ _id: '1', productName: 'Test Product' }];
-      ProductModel.find.mockResolvedValue(products);
+      const mockInvoiceProducts = [{ _id: '1', productName: 'Product 1' }];
+      ProductModel.find = jest.fn().mockResolvedValue(mockInvoiceProducts);
 
       const response = await request(app)
         .get('/api/products/invoice');
 
       expect(response.status).toBe(200);
-      expect(response.body.products).toEqual(products);
+      expect(response.body.products).toEqual(mockInvoiceProducts);
     });
 
     it('should return 500 on error', async () => {
-      ProductModel.find.mockRejectedValue(new Error('Error'));
+      ProductModel.find = jest.fn().mockRejectedValue(new Error('Fetch failed'));
 
       const response = await request(app)
         .get('/api/products/invoice');
@@ -160,18 +162,18 @@ describe('Product Controller', () => {
 
   describe('getLowStockProducts', () => {
     it('should return low stock products', async () => {
-      const lowStockProducts = [{ _id: '1', productName: 'Low Stock Product' }];
-      ProductModel.aggregate.mockResolvedValue(lowStockProducts);
+      const mockLowStockProducts = [{ _id: '1', productName: 'Low Stock Product' }];
+      ProductModel.aggregate = jest.fn().mockResolvedValue(mockLowStockProducts);
 
       const response = await request(app)
         .get('/api/products/low-stock');
 
       expect(response.status).toBe(200);
-      expect(response.body.products).toEqual(lowStockProducts);
+      expect(response.body.products).toEqual(mockLowStockProducts);
     });
 
     it('should return 500 on error', async () => {
-      ProductModel.aggregate.mockRejectedValue(new Error('Error'));
+      ProductModel.aggregate = jest.fn().mockRejectedValue(new Error('Fetch failed'));
 
       const response = await request(app)
         .get('/api/products/low-stock');
