@@ -1,0 +1,1 @@
+export default {\n  testEnvironment: 'node',\n  transform: {\n    '^.+\\.js$': 'babel-jest',\n  },\n  moduleFileExtensions: ['js', 'json', 'jsx', 'node'],\n};
