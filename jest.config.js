@@ -1,0 +1,1 @@
+export default { testEnvironment: 'node', moduleFileExtensions: ['js'], testMatch: ['**/__tests__/**/*.js', '**/?(*.)+(spec|test).js'], }
